@@ -22,7 +22,7 @@ function UserLocationMarker() {
       {
         enableHighAccuracy: true,
         maximumAge: 5_000,
-        timeout: 10_000,
+        timeout: 30_000,
       },
     );
 

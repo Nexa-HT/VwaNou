@@ -4,6 +4,9 @@ import HeatLayer from "./HeatLayer";
 import IncidentMarker from "./IncidentMarker";
 import UserLocationMarker from "./UserLocationMarker";
 import ZonePolygon from "./ZonePolygon";
+import AlertBanner from "./AlertBanner";
+import Sidebar from "./Sidebar";
+import FloatingActions from "./FloatingActions";
 import {
   api,
   type AdminDashboard,
@@ -104,7 +107,7 @@ function ReturnToLocationButton() {
       {
         enableHighAccuracy: true,
         maximumAge: 5_000,
-        timeout: 10_000,
+        timeout: 30_000,
       },
     );
 
@@ -269,7 +272,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10_000,
+        timeout: 30_000,
       },
     );
   }, []);
@@ -519,6 +522,8 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
 
   return (
     <div className="map-shell">
+      <AlertBanner incidents={visibleIncidents} />
+      <Sidebar incidents={visibleIncidents} zones={zones} />
       <MapContainer center={mapCenter} zoom={mapZoom} className="map-container" scrollWheelZoom>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -530,6 +535,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
         <ZonePolygon zones={zones} />
         <ReturnToLocationButton />
       </MapContainer>
+      <FloatingActions onReport={openReportForm} />
 
       {isSuperUser && unconfirmedAlertsForSuperUsers > 0 && (
         <div className="map-status map-status-superuser">
