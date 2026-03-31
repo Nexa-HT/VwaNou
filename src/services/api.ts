@@ -16,6 +16,7 @@ interface BackendIncident {
   confirmations_count?: number;
   reporter_name?: string;
   reporter_role?: string;
+  image_url?: string;
   created_at?: string;
 }
 
@@ -69,9 +70,15 @@ interface LoginPayload {
   password: string;
 }
 
+interface AnalyzeMediaPayload {
+  description?: string;
+  media_url?: string;
+  transcript?: string;
+}
+
 interface IncidentCreatePayload {
   description: string;
-  category?: string;
+  category: string;
   lat: number;
   lng: number;
   image_url?: string;
@@ -211,6 +218,7 @@ function toIncident(incident: BackendIncident): Incident {
     reporterName: incident.reporter_name,
     reporterRole: incident.reporter_role,
     createdAt: incident.created_at,
+    mediaUrl: incident.image_url,
   };
 }
 
@@ -306,6 +314,32 @@ export const api = {
     });
 
     return toAuthSession(response);
+  },
+
+  uploadIncidentMedia: async (token: string, file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await requestJson<{ url: string }>("/incidents/upload-media", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    return response;
+  },
+
+  analyzeMedia: async (token: string, payload: AnalyzeMediaPayload): Promise<{ category: string; urgency: number }> => {
+    const response = await requestJson<{ category: string; urgency: number }>("/incidents/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return response;
   },
 
   submitIncident: async (token: string, payload: IncidentCreatePayload): Promise<Incident> => {

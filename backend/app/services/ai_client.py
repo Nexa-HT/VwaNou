@@ -25,15 +25,16 @@ MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
 MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "400"))
 
 CATEGORIES = {
-    "crime",
-    "urgence_medicale",
-    "incendie",
-    "zone_suspecte",
-    "incident_routier",
-    "violence_domestique",
-    "disparition",
-    "catastrophe_naturelle",
-    "autre",
+    "fire",
+    "gunshot",
+    "flood",
+    "kidnapping",
+    "earthquake",
+    "landslide",
+    "accident",
+    "civil unrest",
+    "medical emergency",
+    "other",
 }
 
 
@@ -63,30 +64,59 @@ class AIClient:
     def classify_incident(
         self,
         description: str,
+        media_url: str | None = None,
+        transcript: str | None = None,
         type_evenement: str | None = None,
         localisation: str | None = None,
         existing_reports: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Classify one incident and always return a safe dict result."""
-        if not description or not description.strip():
+        if not description and not media_url and not transcript:
             return self._fallback_response("empty_description")
 
         if self._client is None or self._anthropic_module is None:
             return self._fallback_response("client_unavailable")
 
-        prompt = self._build_prompt(
-            description=description,
+        full_desc = description.strip() if description else ""
+        if transcript:
+            full_desc += f"\n\n[Transcript vocal / Témoignage]: {transcript.strip()}"
+
+        prompt_text = self._build_prompt(
+            description=full_desc,
             type_evenement=type_evenement,
             localisation=localisation,
             existing_reports=existing_reports,
         )
+
+        messages_content: list[dict[str, Any]] = [{"type": "text", "text": prompt_text}]
+
+        if media_url:
+            from app.services.image_utils import encode_image_base64, extract_video_frames
+            filepath = media_url.lstrip("/")
+            if os.path.exists(filepath):
+                ext = filepath.lower().split('.')[-1]
+                if ext in ["jpg", "jpeg", "png", "webp"]:
+                    b64 = encode_image_base64(filepath)
+                    if b64:
+                        mime = f"image/{ext if ext != 'jpg' else 'jpeg'}"
+                        messages_content.append({
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": mime, "data": b64}
+                        })
+                elif ext in ["mp4", "webm"]:
+                    frames = extract_video_frames(filepath, max_frames=3)
+                    for frame_b64 in frames:
+                        messages_content.append({
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": "image/jpeg", "data": frame_b64}
+                        })
 
         try:
             response = self._client.messages.create(
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
                 system=self._system_prompt(),
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": messages_content}],
             )
             raw_text = response.content[0].text.strip()
             return self._parse_response(raw_text)
@@ -148,9 +178,9 @@ Return strict JSON with this exact shape:
 
         data = json.loads(clean)
 
-        category = str(data.get("category", "autre"))
+        category = str(data.get("category", "other"))
         if category not in CATEGORIES:
-            category = "autre"
+            category = "other"
 
         try:
             urgency = int(data.get("urgency", 1))
@@ -173,7 +203,7 @@ Return strict JSON with this exact shape:
 
     def _fallback_response(self, error_type: str) -> dict[str, Any]:
         return {
-            "category": "autre",
+            "category": "other",
             "urgency": 1,
             "summary": "Signalement recu - analyse IA temporairement indisponible.",
             "is_duplicate": False,
@@ -189,6 +219,6 @@ Return strict JSON with this exact shape:
 ai_client = AIClient()
 
 
-async def classify_text(description: str) -> dict[str, Any]:
+async def classify_text(description: str, media_url: str | None = None, transcript: str | None = None) -> dict[str, Any]:
     """Backward-compatible async adapter used by incidents router."""
-    return ai_client.classify_incident(description=description)
+    return ai_client.classify_incident(description=description, media_url=media_url, transcript=transcript)

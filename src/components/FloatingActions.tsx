@@ -4,9 +4,10 @@ interface Props {
   is3DMode?: boolean;
   toggle3D?: () => void;
   onReport?: () => void;
+  onLocate?: () => void;
 }
 
-const FloatingActions: React.FC<Props> = ({ is3DMode = false, toggle3D, onReport }) => {
+const FloatingActions: React.FC<Props> = ({ is3DMode = false, toggle3D, onReport, onLocate }) => {
   return (
     <div className="vwanou-fab-container">
       {toggle3D && (
@@ -46,7 +47,7 @@ const FloatingActions: React.FC<Props> = ({ is3DMode = false, toggle3D, onReport
         <span>Rapòte</span>
       </button>
 
-      <button className="fab fab-secondary" aria-label="Pozisyon m">
+      <button className="fab fab-secondary" aria-label="Pozisyon m" title="Pozisyon m" onClick={onLocate}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
         </svg>

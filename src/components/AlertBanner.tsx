@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Incident } from '../types/Incident';
 import './AlertBanner.css';
 
 interface Alert {
@@ -9,15 +10,36 @@ interface Alert {
   time: string;
 }
 
-const DEMO_ALERTS: Alert[] = [
-  { id: '1', level: 'kritik', message: 'Evitye zòn nan — Gen cho k ap tire', zone: 'Martissant', time: 'il y a 5 min' },
-  { id: '2', level: 'suspèk', message: 'Blokis wout — Manifestasyon an cours', zone: 'Delmas 33', time: 'il y a 12 min' },
-  { id: '3', level: 'enfo', message: 'Aksidan sikilasyon — Fe atansyon', zone: 'Pétion-Ville', time: 'il y a 22 min' },
-];
+interface AlertBannerProps {
+  incidents: Incident[];
+}
 
-const AlertBanner: React.FC = () => {
+const AlertBanner: React.FC<AlertBannerProps> = ({ incidents }) => {
   const [dismissed, setDismissed] = useState<string[]>([]);
-  const visible = DEMO_ALERTS.filter(a => !dismissed.includes(a.id));
+
+  // Map the most recent urgent incidents to alerts
+  const mapIncidentToAlert = (i: Incident): Alert => {
+    let level: Alert['level'] = 'enfo';
+    const t = i.type?.toLowerCase() || '';
+    if (t.includes('accident') || t.includes('violence') || t.includes('gunfire')) level = 'kritik';
+    else if (t.includes('protest') || t.includes('hazard') || t.includes('roadblock')) level = 'suspèk';
+    
+    return {
+      id: i.id,
+      level,
+      message: i.description || i.type,
+      zone: `Kowòdone: ${i.position[0].toFixed(3)}, ${i.position[1].toFixed(3)}`,
+      time: i.createdAt ? new Date(i.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Kounye a'
+    };
+  };
+
+  const alertList = incidents
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 3)
+    .map(mapIncidentToAlert);
+
+  const visible = alertList.filter(a => !dismissed.includes(a.id));
 
   if (visible.length === 0) return null;
 
@@ -50,6 +72,7 @@ const AlertBanner: React.FC = () => {
             className="alert-dismiss"
             onClick={() => setDismissed(prev => [...prev, top.id])}
             aria-label="Fèmen"
+            title="Fèmen"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>

@@ -12,23 +12,29 @@ function UserLocationMarker() {
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        setPosition([coords.latitude, coords.longitude]);
-      },
-      (error) => {
-        console.error("Geolocation error:", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5_000,
-        timeout: 30_000,
-      },
-    );
+    let timeoutId: number;
 
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
+    const fetchLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          setPosition([coords.latitude, coords.longitude]);
+          timeoutId = window.setTimeout(fetchLocation, 5000);
+        },
+        (error) => {
+          console.error("Geolocation error:", error.message);
+          timeoutId = window.setTimeout(fetchLocation, 10000);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5_000,
+          timeout: 15_000,
+        },
+      );
     };
+
+    fetchLocation();
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const userIcon = useMemo(

@@ -49,7 +49,7 @@ function AuthPage({ onAuthenticated }: AuthPageProps) {
   return (
     <main className="auth-shell">
       <section className="auth-card" aria-labelledby="auth-title">
-        <p className="auth-eyebrow">VwaNou AI</p>
+        <p className="auth-eyebrow">VwaNou</p>
         <h1 id="auth-title">Community safety access</h1>
         <p className="auth-subtitle">Sign in to track alerts or create an account to start reporting incidents.</p>
 

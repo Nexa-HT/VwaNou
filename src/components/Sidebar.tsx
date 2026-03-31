@@ -1,6 +1,34 @@
+import type { Incident } from '../types/Incident';
+import type { Zone } from '../types/Zone';
 import './Sidebar.css';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  incidents: Incident[];
+  zones: Zone[];
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ incidents, zones }) => {
+  const recentReports = incidents
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 5);
+
+  const getIconClass = (type: string | undefined) => {
+    const t = type?.toLowerCase() || '';
+    if (t.includes('accident') || t.includes('violence') || t.includes('gunfire')) return 'accident';
+    return 'protest';
+  };
+
+  const getRelativeTime = (timeStr?: string) => {
+    if (!timeStr) return 'Sa gen kèk minit';
+    const diffMs = Date.now() - new Date(timeStr).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `Sa gen ${Math.max(1, diffMins)} minit`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Sa gen ${diffHours} èdtan`;
+    return `Sa gen ${Math.floor(diffHours / 24)} jou`;
+  };
+
   return (
     <aside className="vwanou-sidebar glass-panel">
       <div className="sidebar-section">
@@ -28,11 +56,11 @@ const Sidebar: React.FC = () => {
         <h3>Estatistik (Jodi a)</h3>
         <div className="stats-grid">
           <div className="stat-card">
-            <span className="stat-value text-red">12</span>
+            <span className="stat-value text-red">{incidents.length}</span>
             <span className="stat-label">Ensidan</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value text-orange">4</span>
+            <span className="stat-value text-orange">{zones.length}</span>
             <span className="stat-label">Zòn Danje</span>
           </div>
         </div>
@@ -40,20 +68,21 @@ const Sidebar: React.FC = () => {
 
       <div className="sidebar-section incidents-list">
         <h3>Dènye Rapò Yo</h3>
-        <div className="incident-item">
-          <div className="incident-icon accident"></div>
-          <div className="incident-details">
-            <h4>Aksidan Sikilasyon</h4>
-            <p>Wout Dèlma - Sa gen 15 minit</p>
-          </div>
-        </div>
-        <div className="incident-item">
-          <div className="incident-icon protest"></div>
-          <div className="incident-details">
-            <h4>Rasanbleman</h4>
-            <p>Anba Lavil - Sa gen 1èdtan</p>
-          </div>
-        </div>
+        {recentReports.length === 0 ? (
+          <p style={{ fontSize: '12px', color: '#94a3b8' }}>Pa gen oken rapò.</p>
+        ) : (
+          recentReports.map(incident => (
+            <div key={incident.id} className="incident-item">
+              <div className={`incident-icon ${getIconClass(incident.type)}`}></div>
+              <div className="incident-details">
+                <h4>{incident.type || 'Ensidan'}</h4>
+                <p>
+                  {incident.description ? (incident.description.substring(0, 30) + (incident.description.length > 30 ? '...' : '')) : 'Pa gen detay'} - {getRelativeTime(incident.createdAt)}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </aside>
   );

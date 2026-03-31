@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import HeatLayer from "./HeatLayer";
 import IncidentMarker from "./IncidentMarker";
 import UserLocationMarker from "./UserLocationMarker";
 import ZonePolygon from "./ZonePolygon";
+import LiveMediaRecorder from "./LiveMediaRecorder";
 import AlertBanner from "./AlertBanner";
 import Sidebar from "./Sidebar";
 import FloatingActions from "./FloatingActions";
@@ -18,6 +24,7 @@ import {
 } from "../services/api";
 import type { Incident } from "../types/Incident";
 import type { Zone } from "../types/Zone";
+import { compressMediaFile } from "../utils/mediaCompression";
 
 const HAITI_CENTER: [number, number] = [18.9712, -72.2852];
 const USER_ZOOM_LEVEL = 15;
@@ -87,7 +94,7 @@ function normalizeCategory(category: string): string {
   return CATEGORY_OPTIONS.includes(value as (typeof CATEGORY_OPTIONS)[number]) ? value : "other";
 }
 
-function ReturnToLocationButton() {
+function MapFloatingActions({ onReport }: { onReport: () => void }) {
   const map = useMap();
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
@@ -96,24 +103,30 @@ function ReturnToLocationButton() {
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        const newLocation: [number, number] = [coords.latitude, coords.longitude];
-        setUserLocation(newLocation);
-      },
-      (error) => {
-        console.error("Geolocation error:", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5_000,
-        timeout: 30_000,
-      },
-    );
+    let timeoutId: number;
 
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
+    const fetchLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          const newLocation: [number, number] = [coords.latitude, coords.longitude];
+          setUserLocation(newLocation);
+          timeoutId = window.setTimeout(fetchLocation, 5000);
+        },
+        (error) => {
+          console.error("Geolocation error:", error.message);
+          timeoutId = window.setTimeout(fetchLocation, 10000);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5_000,
+          timeout: 15_000,
+        },
+      );
     };
+
+    fetchLocation();
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const returnToLocation = () => {
@@ -122,35 +135,23 @@ function ReturnToLocationButton() {
     }
   };
 
-  return (
-    <button
-      type="button"
-      className="return-to-location-btn"
-      onClick={returnToLocation}
-      title="Return to my location"
-      aria-label="Return to my location"
-    >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-        <circle cx="12" cy="10" r="3" />
-      </svg>
-    </button>
-  );
+  return <FloatingActions onReport={onReport} onLocate={returnToLocation} />;
 }
 
 interface MapViewProps {
   currentUser: AuthUser;
   authToken: string;
   onSignOut: () => void;
+}
+
+function MapCenterTracker({ onMoveEnd }: { onMoveEnd: (center: [number, number]) => void }) {
+  useMapEvents({
+    moveend: (e) => {
+      const center = e.target.getCenter();
+      onMoveEnd([center.lat, center.lng]);
+    },
+  });
+  return null;
 }
 
 function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
@@ -169,6 +170,12 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   const [reportLng, setReportLng] = useState<string>(String(HAITI_CENTER[1]));
   const [reportError, setReportError] = useState<string | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportMedia, setReportMedia] = useState<File | null>(null);
+  const [reportMediaPreview, setReportMediaPreview] = useState<string | null>(null);
+  const [reportMediaUrl, setReportMediaUrl] = useState<string | null>(null);
+  const [showRecorder, setShowRecorder] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [userModifiedCategory, setUserModifiedCategory] = useState(false);
   const [certificationOpen, setCertificationOpen] = useState(false);
   const [certificationProfession, setCertificationProfession] = useState("");
   const [certificationOrganization, setCertificationOrganization] = useState("");
@@ -208,6 +215,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   const isVerifiedOnly = !isAdmin && isSuperUser;
 
   const loadMyCertificationRequests = useCallback(async () => {
+    if (!authToken) return;
     try {
       const requests = await api.getMyCertificationRequests(authToken);
       setMyCertificationRequests(requests);
@@ -255,27 +263,56 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   }, [authToken, isSuperUser]);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      return;
-    }
+    if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const location: [number, number] = [coords.latitude, coords.longitude];
         setMapCenter(location);
         setMapZoom(USER_ZOOM_LEVEL);
-        setReportLat(location[0].toFixed(6));
-        setReportLng(location[1].toFixed(6));
       },
       (error) => {
         console.error("Geolocation error:", error.message);
       },
       {
         enableHighAccuracy: true,
-        timeout: 30_000,
+        timeout: 10_000,
+        maximumAge: 0,
       },
     );
   }, []);
+
+  useEffect(() => {
+    if (!userModifiedCategory) {
+      if (reportDescription.trim().length <= 3) {
+        setReportCategory("other");
+        return;
+      }
+
+      const lowerDesc = reportDescription.toLowerCase();
+      const keywordMap: Record<string, string[]> = {
+        "gunshot": ["tirs", "tir", "arme", "fusillade", "gang", "balle", "agression", "braquage", "vol", "zam", "tire", "bal", "kout zam", "vòlè", "asasen", "brakaj"],
+        "fire": ["feu", "incendie", "brûle", "fumée", "dife", "boule", "lafimen"],
+        "accident": ["accident", "circulation", "voiture", "moto", "aksidan", "machin", "kamyon"],
+        "civil unrest": ["bloqué", "blocus", "barricade", "manifestation", "pneu", "grève", "bloke", "barikad", "manifestasyon", "kawotchou", "grev", "fè nwa"],
+        "medical emergency": ["blessé", "sang", "hopital", "malaise", "mort", "urgence", "frappe", "violences", "blese", "san", "lopital", "mouri", "malad"],
+        "kidnapping": ["kidnapping", "enlèvement", "otage", "kidnape", "kidnapin"],
+        "earthquake": ["séisme", "tremblement", "secousse", "tranbleman", "tè tranble"],
+        "landslide": ["glissement", "éboulement", "eboulman", "tè glise", "te glise"],
+        "flood": ["inondation", "eau", "crue", "rivière", "ouragan", "tempête", "inondasyon", "dlo desann", "dlo", "rivyè", "lavalas", "siklon", "tanpèt"],
+        "other": ["suspect", "rôde", "inconnu", "disparu", "sispèk", "moun pèdi", "vòlò"],
+      };
+
+      let matched = "other";
+      for (const [cat, words] of Object.entries(keywordMap)) {
+        if (words.some((w) => lowerDesc.includes(w))) {
+          matched = cat;
+          break;
+        }
+      }
+      setReportCategory(matched);
+    }
+  }, [reportDescription, userModifiedCategory]);
 
   useEffect(() => {
     void loadMapData();
@@ -288,12 +325,22 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   const openReportForm = () => {
     setMenuOpen(false);
     setReportError(null);
+    setReportLat(mapCenter[0].toFixed(6));
+    setReportLng(mapCenter[1].toFixed(6));
     setReportOpen(true);
   };
 
   const closeReportForm = () => {
     setReportOpen(false);
     setReportError(null);
+    setReportCategory("other");
+    setReportDescription("");
+    setReportMedia(null);
+    setReportMediaPreview(null);
+    setReportMediaUrl(null);
+    setShowRecorder(false);
+    setIsAnalyzing(false);
+    setUserModifiedCategory(false);
   };
 
   const openCertificationForm = () => {
@@ -337,10 +384,16 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
         category: normalizeCategory(reportCategory),
         lat,
         lng,
+        image_url: reportMediaUrl || undefined,
       });
       setReportOpen(false);
       setReportCategory("other");
       setReportDescription("");
+      setReportMedia(null);
+      setReportMediaPreview(null);
+      setReportMediaUrl(null);
+      setShowRecorder(false);
+      setIsAnalyzing(false);
       await loadMapData();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to submit report right now.";
@@ -508,8 +561,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
     [visibleIncidents],
   );
 
-  const hasNoIncidents = !isLoadingData && !dataError && visibleIncidents.length === 0;
-  const hasNoZones = !isLoadingData && !dataError && zones.length === 0;
+
   const pendingMyCertification = myCertificationRequests.some((item) => item.status === "pending");
   const unconfirmedAlertsForSuperUsers = visibleIncidents.filter((incident) => (incident.confirmationsCount ?? 0) === 0).length;
 
@@ -525,6 +577,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
       <AlertBanner incidents={visibleIncidents} />
       <Sidebar incidents={visibleIncidents} zones={zones} />
       <MapContainer center={mapCenter} zoom={mapZoom} className="map-container" scrollWheelZoom>
+        <MapCenterTracker onMoveEnd={setMapCenter} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -533,9 +586,8 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
         <IncidentMarker incidents={visibleIncidents} canConfirm={isSuperUser} onConfirmIncident={confirmIncident} />
         <UserLocationMarker />
         <ZonePolygon zones={zones} />
-        <ReturnToLocationButton />
+        <MapFloatingActions onReport={openReportForm} />
       </MapContainer>
-      <FloatingActions onReport={openReportForm} />
 
       {isSuperUser && unconfirmedAlertsForSuperUsers > 0 && (
         <div className="map-status map-status-superuser">
@@ -554,20 +606,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
         </div>
       )}
 
-      {(hasNoIncidents || hasNoZones) && (
-        <div className="map-empty-state" role="status">
-          <h2>Live map has limited data</h2>
-          {hasNoIncidents && (
-            <>
-              <p>No incidents reported yet. The map will update as reports are submitted.</p>
-              <button type="button" className="map-empty-cta" onClick={openReportForm}>
-                Report first incident
-              </button>
-            </>
-          )}
-          {hasNoZones && <p>No safe zones available yet. Add zones from the backend to visualize safer areas.</p>}
-        </div>
-      )}
+
 
       {reportOpen && (
         <div className="report-modal-backdrop" role="presentation" onClick={closeReportForm}>
@@ -582,11 +621,11 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
             <p>Reports are linked to your account and analyzed for urgency.</p>
 
             <label>
-              Description (optional)
+              Description (optionnel)
               <textarea
                 value={reportDescription}
                 onChange={(event) => setReportDescription(event.target.value)}
-                placeholder="Describe what happened (optional)"
+                placeholder="Décrivez ce qu'il se passe..."
               />
             </label>
 
@@ -594,7 +633,10 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
               Category
               <select
                 value={reportCategory}
-                onChange={(event) => setReportCategory(event.target.value)}
+                onChange={(event) => {
+                  setReportCategory(event.target.value);
+                  setUserModifiedCategory(true);
+                }}
               >
                 {CATEGORY_OPTIONS.map((category) => (
                   <option key={category} value={category}>
@@ -604,27 +646,87 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
               </select>
             </label>
 
-            <div className="report-modal-coords">
-              <label>
-                Latitude
-                <input
-                  type="text"
-                  value={reportLat}
-                  onChange={(event) => setReportLat(event.target.value)}
-                  required
-                />
-              </label>
+            {showRecorder ? (
+              <LiveMediaRecorder 
+                onCapture={async (file, transcript) => {
+                  try {
+                    setIsAnalyzing(true);
+                    setReportError(null);
+                    setShowRecorder(false);
+                    
+                    if (file.type.startsWith("image/")) {
+                      setReportMediaPreview(URL.createObjectURL(file));
+                    } else {
+                      setReportMediaPreview(null);
+                    }
+                    setReportMedia(file);
 
-              <label>
-                Longitude
-                <input
-                  type="text"
-                  value={reportLng}
-                  onChange={(event) => setReportLng(event.target.value)}
-                  required
-                />
-              </label>
-            </div>
+                    const compressed = await compressMediaFile(file);
+                    const uploadResult = await api.uploadIncidentMedia(authToken, compressed);
+                    setReportMediaUrl(uploadResult.url);
+
+                    let desc = reportDescription;
+                    if (transcript) {
+                      desc = desc ? `${desc}\n[Vocal]: ${transcript}` : `[Vocal]: ${transcript}`;
+                      setReportDescription(desc);
+                    }
+
+                    const analyzeResult = await api.analyzeMedia(authToken, {
+                       description: desc,
+                       media_url: uploadResult.url,
+                       transcript: transcript
+                    });
+                    
+                    if (analyzeResult.category && analyzeResult.category !== "unknown") {
+                       setReportCategory(analyzeResult.category);
+                    }
+                  } catch (e) {
+                     console.error("Erreur d'analyse IA:", e);
+                  } finally {
+                    setIsAnalyzing(false);
+                  }
+                }} 
+                onCancel={() => setShowRecorder(false)} 
+              />
+            ) : (
+              <div className="report-media-upload" style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", marginBottom: "16px" }}>
+                <label style={{ fontSize: "14px", fontWeight: "600", color: "white" }}>
+                  Preuve Vérifiée On-site (Live) - Optionnel
+                </label>
+                {!reportMedia && !isAnalyzing && (
+                  <button 
+                    type="button" 
+                    className="report-secondary" 
+                    onClick={() => setShowRecorder(true)} 
+                    style={{ marginTop: "4px", padding: "10px", display: "flex", justifyContent: "center", gap: "8px", alignItems: "center" }}
+                  >
+                    <span>🔴 Capturer (Caméra / Micro)</span>
+                  </button>
+                )}
+                {isAnalyzing && (
+                  <p style={{ fontSize: "12px", color: "var(--accent-teal)", margin: "0" }}>
+                    🤖 Analyse IA de la preuve en cours...
+                  </p>
+                )}
+                {reportMediaPreview && !isAnalyzing && (
+                  <img 
+                    src={reportMediaPreview} 
+                    alt="Aperçu" 
+                    style={{ width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "6px" }} 
+                  />
+                )}
+                {reportMedia && !reportMediaPreview && !isAnalyzing && (
+                  <p style={{ fontSize: "12px", color: "var(--accent-teal)", margin: "0" }}>
+                    Fichier capturé : {reportMedia.name}
+                  </p>
+                )}
+                {reportMedia && !isAnalyzing && (
+                  <button type="button" onClick={() => { setReportMedia(null); setReportMediaPreview(null); setReportMediaUrl(null); }} style={{ background: "transparent", color: "#ef4444", border: "none", alignSelf: "flex-start", fontSize: "12px", cursor: "pointer", padding: "0" }}>
+                    ✕ Supprimer la preuve
+                  </button>
+                )}
+              </div>
+            )}
 
             {reportError && (
               <p className="report-modal-error" role="alert">

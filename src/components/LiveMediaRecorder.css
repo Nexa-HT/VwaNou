@@ -1,0 +1,171 @@
+.live-recorder-container {
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.live-recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.live-recorder-header label {
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0;
+}
+
+.close-recorder {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close-recorder:hover {
+  color: white;
+}
+
+.live-recorder-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.live-recorder-tabs button {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 12px;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.live-recorder-tabs button.active {
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+  color: #0f172a;
+  font-weight: bold;
+}
+
+.live-recorder-body {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: black;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-video.recording {
+  border: 2px solid red;
+}
+
+.status-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  text-align: center;
+  padding: 12px;
+}
+
+.status-text.error {
+  color: #ef4444;
+}
+
+.live-audio-waveform {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-size: 14px;
+}
+
+.audio-dot {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.audio-dot.recording {
+  background: #ef4444;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { transform: scale(1); box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+  to { transform: scale(1.2); box-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
+}
+
+.live-timer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.live-recorder-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+}
+
+.action-btn.shutter {
+  background: white;
+  color: black;
+}
+
+.action-btn.record {
+  background: #ef4444;
+  color: white;
+}
+
+.action-btn.stop {
+  background: #f59e0b;
+  color: white;
+}

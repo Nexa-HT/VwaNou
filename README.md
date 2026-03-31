@@ -1,73 +1,48 @@
-# React + TypeScript + Vite
+# VwaNou - Plateforme de Sécurité Communautaire
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+VwaNou est une application Web moderne de cartographie interactive conçue pour centraliser le signalement, la visualisation, et l'alerte des incidents de sécurité au sein d'une communauté. Cette plateforme connecte directement les citoyens, les entités vérifiées (ONG, Journalistes, Police), et les administrateurs pour créer un environnement d'entraide géographique en temps réel.
 
-Currently, two official plugins are available:
+## 🚀 Fonctionnalités Principales
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. **Cartographie en Temps Réel** : Une vue cartographique interactive (Leaflet) permettant l'exploration spatiale des incidents.
+2. **Signalement Géolocalisé** : Les utilisateurs peuvent rapporter des incidents via un suivi GPS (filature silencieuse) qui garantit la précision des coordonnées à la seconde près.
+3. **Widgets d'Alerte Intelligents** : Bandeau dynamique qualifiant l'urgence des situations (KRITIK, SISPÈK, ENFO) et barre latérale de monitoring "Glassmorphism" affichant les statistiques en direct.
+4. **Zonage de Danger (ZonePolygon)** : Tracés de polygones de sécurité depuis le tableau de bord Admin pour délimiter physiquement les zones à risque.
+5. **Vérification d'Identité & Modération** : Système complet de validation communautaire des incidents et de demande de rôles "SuperUse" (Policiers, Fonctionnaires certifiés).
 
-## React Compiler
+## 🛠️ Architecture & Technologies
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Le système est entièrement découplé (Frontend / Backend) :
 
-## Expanding the ESLint configuration
+### Frontend (Interface Client)
+- **Framework** : React 19 avec Vite.js et configuration TypeScript stricte.
+- **UI Design** : Thème Premium *Glassmorphism* personnalisé (UI flottante sans bordures massives).
+- **Cartographie** : `react-leaflet`, offrant les contrôles de caméras, marqueurs d'incidents interactifs, et la géolocalisation native des utilisateurs.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Backend (Serveur)
+- **API** : FastAPI complet offrant rapidité d'exécution et documentation asynchrone (Python).
+- **Base de données** : PostgreSQL avec ORM SQLAlchemy.
+- **Sécurité** : Authentification JWT, et modèle de permission robuste incluant des accréditations modulaires (citoyen, admin, superuser).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 📦 Installation & Déploiement Local
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Pour faire tourner le projet VwaNou en environnement de développement : 
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 1. Backend (Lancer l'API FastAPI et PostgreSQL)
+1. Activez votre environnement virtuel Python :
+   `./backend/.venv_backend/Scripts/activate`
+2. Installez les paquets (si nécessaire) via le `requirements.txt` / pip.
+3. Configurez votre `.env` local pour attacher le PostGre (Ex: `DATABASE_URL=postgresql+psycopg2://postgres:VotreMdp@127.0.0.1:5432/vwanou`).
+4. Lancez le serveur avec uvicorn :
+   ```bash
+   cd backend
+   uvicorn app.main:app --reload
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 2. Frontend (Lancer l'interface Web Vite)
+1. Installez les packages via `npm install`
+2. Lancez le serveur de développement :
+   ```bash
+   npm run dev
+   ```
+3. L'application est alors accessible sous `http://localhost:5173`.

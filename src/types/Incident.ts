@@ -7,6 +7,7 @@ export interface Incident {
   reporterName?: string;
   reporterRole?: string;
   createdAt?: string;
+  mediaUrl?: string;
   displayOpacity?: number;
   displayColor?: string;
 }

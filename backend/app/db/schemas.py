@@ -83,6 +83,23 @@ class IncidentConfirmResponse(BaseModel):
     confirmations_count: int
 
 
+class AnalyzeMediaRequest(BaseModel):
+    description: str | None = None
+    media_url: str | None = None
+    transcript: str | None = None
+
+
+class AnalyzeMediaResponse(BaseModel):
+    category: str
+    urgency: int
+
+
+class Token(BaseModel):
+    lat: float
+    lng: float
+    intensity: float
+
+
 class HeatmapPoint(BaseModel):
     lat: float
     lng: float

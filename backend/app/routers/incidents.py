@@ -1,12 +1,22 @@
+import os
+import shutil
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import Report, ReportConfirmation, User
-from app.db.schemas import IncidentConfirmResponse, IncidentMapDataResponse, IncidentReportCreate, IncidentResponse
+from app.db.schemas import (
+    IncidentConfirmResponse,
+    IncidentMapDataResponse,
+    IncidentReportCreate,
+    IncidentResponse,
+    ReportFilters,
+    AnalyzeMediaRequest,
+    AnalyzeMediaResponse,
+)
 from app.routers.auth import get_current_user, require_super_user
 from app.services.ai_client import classify_text
 from app.services.trust_score import calculate_confidence_score
@@ -73,6 +83,41 @@ def _attach_reporter_metadata(db: Session, reports: list[Report]) -> None:
         reporter = users_by_id.get(report.user_id)
         report.reporter_name = reporter.name if reporter else None
         report.reporter_role = reporter.role if reporter else None
+
+
+@router.post("/upload-media", status_code=status.HTTP_201_CREATED)
+async def upload_incident_media(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+    os.makedirs("uploads", exist_ok=True)
+    filepath = os.path.join("uploads", unique_filename)
+    
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"url": f"/uploads/{unique_filename}"}
+
+
+@router.post("/analyze", response_model=AnalyzeMediaResponse)
+async def analyze_incident_media(
+    payload: AnalyzeMediaRequest,
+    current_user: User = Depends(get_current_user),
+) -> AnalyzeMediaResponse:
+    ai_result = await classify_text(
+        description=payload.description or "",
+        media_url=payload.media_url,
+        transcript=payload.transcript,
+    )
+    return AnalyzeMediaResponse(
+        category=ai_result.get("category", "unknown"),
+        urgency=int(ai_result.get("urgency", 1))
+    )
 
 
 @router.post("/report", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED)
