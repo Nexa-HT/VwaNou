@@ -2,7 +2,7 @@
 
 VwaNou est une application Web moderne de cartographie interactive conçue pour centraliser le signalement, la visualisation, et l'alerte des incidents de sécurité au sein d'une communauté. Cette plateforme connecte directement les citoyens, les entités vérifiées (ONG, Journalistes, Police), et les administrateurs pour créer un environnement d'entraide géographique en temps réel.
 
-## 🚀 Fonctionnalités Principales
+## Fonctionnalités Principales
 
 1. **Cartographie en Temps Réel** : Une vue cartographique interactive (Leaflet) permettant l'exploration spatiale des incidents.
 2. **Signalement Géolocalisé** : Les utilisateurs peuvent rapporter des incidents via un suivi GPS (filature silencieuse) qui garantit la précision des coordonnées à la seconde près.
@@ -10,7 +10,7 @@ VwaNou est une application Web moderne de cartographie interactive conçue pour 
 4. **Zonage de Danger (ZonePolygon)** : Tracés de polygones de sécurité depuis le tableau de bord Admin pour délimiter physiquement les zones à risque.
 5. **Vérification d'Identité & Modération** : Système complet de validation communautaire des incidents et de demande de rôles "SuperUse" (Policiers, Fonctionnaires certifiés).
 
-## 🛠️ Architecture & Technologies
+## Architecture & Technologies
 
 Le système est entièrement découplé (Frontend / Backend) :
 
