@@ -1,0 +1,68 @@
+.vwanou-fab-container {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 1000;
+  align-items: flex-end;
+}
+
+.fab {
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  color: white;
+}
+
+.fab:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.fab-secondary {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(26, 32, 44, 0.9); /* Dark background */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.fab-secondary svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fab-report {
+  height: 56px;
+  padding: 0 22px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-hover) 100%);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  gap: 8px;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.45);
+}
+
+.fab-report:hover {
+  box-shadow: 0 8px 28px rgba(249, 115, 22, 0.6);
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+}
+
+.fab-report svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 768px) {
+  .vwanou-fab-container {
+    bottom: calc(40vh + 24px); /* Make sure it's above the bottom sheet/sidebar */
+  }
+}

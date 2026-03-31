@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+alembic
+psycopg2-binary
+python-dotenv
+anthropic
+pydantic
+pydantic[email]
+geojson
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt<5

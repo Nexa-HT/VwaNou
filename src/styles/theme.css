@@ -1,0 +1,37 @@
+:root {
+  --bg-dark: #0a0e17;       /* Very deep black/navy */
+  --bg-navy: #111827;       /* Dark navy */
+  --bg-panel: rgba(17, 24, 39, 0.7); /* Glass panel */
+  
+  --accent-orange: #f97316; /* Bright orange for CTA / Risk */
+  --accent-hover: #ea580c;
+  
+  --danger-red: #ef4444;    /* Danger / Critical risk */
+  --risk-orange: #f97316;   /* Risk / Warning */
+  --info-green: #10b981;    /* Information / Safe */
+  
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  
+  --border-light: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(20px);
+}
+
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.text-orange { color: var(--accent-orange); }
+.text-red { color: var(--danger-red); }
+.text-green { color: var(--info-green); }
+
+.hero-map-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  z-index: 1;
+}
