@@ -14,7 +14,10 @@ class Settings:
         "DATABASE_URL",
         "postgresql+psycopg2://postgres@127.0.0.1:5432/vwanou",
     )
-    cors_origins: str = os.getenv("CORS_ORIGINS", "*")
+    cors_origins: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    )
     jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "change-me")
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
     access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
