@@ -21,10 +21,14 @@ app = FastAPI(title=settings.app_name)
 logger = logging.getLogger(__name__)
 
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+if not origins:
+    origins = ["http://127.0.0.1:5173", "http://localhost:5173"]
+
+allow_credentials = "*" not in origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
