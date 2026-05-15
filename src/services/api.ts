@@ -198,7 +198,27 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new Error(`API request failed (${response.status}) for ${path}`);
+    let message = `API request failed (${response.status}) for ${path}`;
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        const payload = (await response.json()) as { detail?: unknown; message?: unknown };
+        if (typeof payload.detail === "string") {
+          message = payload.detail;
+        } else if (typeof payload.message === "string") {
+          message = payload.message;
+        }
+      } catch {
+        // Keep default message when error payload can't be parsed.
+      }
+    }
+
+    if (response.status === 409 && path === "/auth/register" && message === "Email already exists") {
+      message = "Email already exists. Try logging in instead.";
+    }
+
+    throw new Error(message);
   }
 
   if (response.status === 204) {
