@@ -13,7 +13,6 @@ from app.db.schemas import (
     IncidentMapDataResponse,
     IncidentReportCreate,
     IncidentResponse,
-    ReportFilters,
     AnalyzeMediaRequest,
     AnalyzeMediaResponse,
 )
