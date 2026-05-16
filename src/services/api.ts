@@ -180,7 +180,8 @@ export interface AdminUserListItem {
   role: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? `${window.location.protocol}//${window.location.hostname}:8000`;
 let unauthorizedHandler: (() => void) | null = null;
 
 const zoneRiskLevelByBackendLevel: Record<BackendZone["level"], Zone["riskLevel"]> = {
@@ -190,7 +191,13 @@ const zoneRiskLevelByBackendLevel: Record<BackendZone["level"], Zone["riskLevel"
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, init);
+  } catch {
+    throw new Error(`Cannot reach API at ${API_BASE_URL}. Verify the backend is running and reachable.`);
+  }
 
   if (response.status === 401 && !path.startsWith("/auth/")) {
     unauthorizedHandler?.();

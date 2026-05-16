@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 
@@ -61,6 +62,14 @@ async def healthcheck() -> dict:
         "service": "vwanou-backend",
         "database": "ready" if getattr(app.state, "db_ready", False) else "unavailable",
     }
+
+
+@app.exception_handler(OperationalError)
+async def handle_db_operational_error(_, __: OperationalError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database is currently unavailable. Please try again in a moment."},
+    )
 
 
 app.include_router(auth_router)
