@@ -339,12 +339,18 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   }, [loadMyCertificationRequests]);
 
   useEffect(() => {
-    setNowMs(Date.now());
+    const timeoutId = window.setTimeout(() => {
+      setNowMs(Date.now());
+    }, 0);
+
     const intervalId = window.setInterval(() => {
       setNowMs(Date.now());
     }, 60_000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const openReportForm = () => {

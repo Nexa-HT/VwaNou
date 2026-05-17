@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { Incident } from '../types/Incident';
 import type { Zone } from '../types/Zone';
 import './Sidebar.css';
@@ -8,6 +9,23 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ incidents, zones }) => {
+  const [nowMs, setNowMs] = useState(0);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setNowMs(Date.now());
+    }, 0);
+
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 60_000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, []);
+
   const recentReports = incidents
     .slice()
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
@@ -21,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ incidents, zones }) => {
 
   const getRelativeTime = (timeStr?: string) => {
     if (!timeStr) return 'Sa gen kèk minit';
-    const diffMs = Date.now() - new Date(timeStr).getTime();
+    const diffMs = Math.max(0, nowMs - new Date(timeStr).getTime());
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 60) return `Sa gen ${Math.max(1, diffMins)} minit`;
     const diffHours = Math.floor(diffMins / 60);

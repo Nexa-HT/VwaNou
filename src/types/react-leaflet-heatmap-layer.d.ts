@@ -15,6 +15,6 @@ declare module "react-leaflet-heatmap-layer" {
     fitBoundsOnUpdate?: boolean;
   }
 
-  const HeatmapLayer: FC<HeatmapLayerProps<any>>;
+  const HeatmapLayer: FC<HeatmapLayerProps<unknown>>;
   export default HeatmapLayer;
 }
