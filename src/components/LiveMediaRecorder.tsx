@@ -9,6 +9,35 @@ interface LiveMediaRecorderProps {
 type Mode = "photo" | "video" | "audio";
 type Status = "idle" | "requesting" | "ready" | "recording" | "done" | "error";
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
+
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructorLike;
+  webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+};
+
 export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaRecorderProps) {
   const [mode, setMode] = useState<Mode>("photo");
   const [status, setStatus] = useState<Status>("idle");
@@ -20,7 +49,7 @@ export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaReco
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const transcriptRef = useRef<string>("");
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
@@ -54,7 +83,7 @@ export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaReco
         if (currentMode !== "audio" && videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (err) {
+      } catch {
         setStatus("error");
         setErrorText(
           "Permissions caméra/micro refusées. Autorisez-les dans le navigateur pour capturer une preuve en direct."
@@ -65,8 +94,14 @@ export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaReco
   );
 
   useEffect(() => {
-    void requestPermissions(mode);
-    return stopStream;
+    const timeoutId = window.setTimeout(() => {
+      void requestPermissions(mode);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      stopStream();
+    };
   }, [mode, requestPermissions, stopStream]);
 
   const handleCapturePhoto = () => {
@@ -98,13 +133,14 @@ export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaReco
     transcriptRef.current = "";
 
     // Speech Recognition setup (Fallback pour Chrome/Safari)
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (SpeechRecognition && (mode === "audio" || mode === "video")) {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = "fr-FR";
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         let currentTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           currentTranscript += event.results[i][0].transcript;
@@ -135,7 +171,9 @@ export default function LiveMediaRecorder({ onCapture, onCancel }: LiveMediaReco
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
-        } catch (e) {}
+        } catch {
+          recognitionRef.current = null;
+        }
       }
 
       const blobMime = recorder.mimeType || (mode === "video" ? "video/mp4" : "audio/mp3");

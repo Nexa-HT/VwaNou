@@ -192,6 +192,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [isLoadingAdminDashboard, setIsLoadingAdminDashboard] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUserListItem[]>([]);
+  const [nowMs, setNowMs] = useState(0);
 
   const loadMapData = useCallback(async () => {
     setIsLoadingData(true);
@@ -285,8 +286,10 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
   useEffect(() => {
     if (!userModifiedCategory) {
       if (reportDescription.trim().length <= 3) {
-        setReportCategory("other");
-        return;
+        const timeoutId = window.setTimeout(() => {
+          setReportCategory("other");
+        }, 0);
+        return () => clearTimeout(timeoutId);
       }
 
       const lowerDesc = reportDescription.toLowerCase();
@@ -310,17 +313,39 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
           break;
         }
       }
-      setReportCategory(matched);
+
+      const timeoutId = window.setTimeout(() => {
+        setReportCategory(matched);
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [reportDescription, userModifiedCategory]);
 
   useEffect(() => {
-    void loadMapData();
+    const timeoutId = window.setTimeout(() => {
+      void loadMapData();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [loadMapData]);
 
   useEffect(() => {
-    void loadMyCertificationRequests();
+    const timeoutId = window.setTimeout(() => {
+      void loadMyCertificationRequests();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [loadMyCertificationRequests]);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 60_000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const openReportForm = () => {
     setMenuOpen(false);
@@ -507,12 +532,12 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
     adminDashboard?.certificationStatusCounts.reduce((sum, item) => sum + item.count, 0) ?? 0;
 
   const visibleIncidents = useMemo<Incident[]>(() => {
-    const nowMs = Date.now();
+    const currentNowMs = nowMs || 0;
     const computed = incidents
       .map((incident) => {
         const category = normalizeCategory(incident.type);
-        const createdAtMs = incident.createdAt ? new Date(incident.createdAt).getTime() : nowMs;
-        const ageMinutes = Math.max(0, (nowMs - createdAtMs) / 60000);
+        const createdAtMs = incident.createdAt ? new Date(incident.createdAt).getTime() : currentNowMs;
+        const ageMinutes = Math.max(0, (currentNowMs - createdAtMs) / 60000);
 
         const zoneId =
           zones.find((zone) => isPointInPolygon(incident.position, zone.coordinates))?.id ??
@@ -538,7 +563,9 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
 
         const fadeStart = extendedLifetime * 0.55;
         const opacity =
-          ageMinutes <= fadeStart ? 1 : Math.max(0.08, 1 - (ageMinutes - fadeStart) / Math.max(1, extendedLifetime - fadeStart));
+          ageMinutes <= fadeStart
+            ? 1
+            : Math.max(0.08, 1 - (ageMinutes - fadeStart) / Math.max(1, extendedLifetime - fadeStart));
 
         return {
           ...incident,
@@ -549,7 +576,7 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     return computed;
-  }, [incidents, zones]);
+  }, [incidents, nowMs, zones]);
 
   const dynamicHeatPoints = useMemo<HeatPoint[]>(
     () =>
@@ -605,35 +632,31 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
           </button>
         </div>
       )}
+        return;
+      }
 
+      const lowerDesc = reportDescription.toLowerCase();
+      const keywordMap: Record<string, string[]> = {
+        "gunshot": ["tirs", "tir", "arme", "fusillade", "gang", "balle", "agression", "braquage", "vol", "zam", "tire", "bal", "kout zam", "vòlè", "asasen", "brakaj"],
+        "fire": ["feu", "incendie", "brûle", "fumée", "dife", "boule", "lafimen"],
+        "accident": ["accident", "circulation", "voiture", "moto", "aksidan", "machin", "kamyon"],
+        "civil unrest": ["bloqué", "blocus", "barricade", "manifestation", "pneu", "grève", "bloke", "barikad", "manifestasyon", "kawotchou", "grev", "fè nwa"],
+        "medical emergency": ["blessé", "sang", "hopital", "malaise", "mort", "urgence", "frappe", "violences", "blese", "san", "lopital", "mouri", "malad"],
+        "kidnapping": ["kidnapping", "enlèvement", "otage", "kidnape", "kidnapin"],
+        "earthquake": ["séisme", "tremblement", "secousse", "tranbleman", "tè tranble"],
+        "landslide": ["glissement", "éboulement", "eboulman", "tè glise", "te glise"],
+        "flood": ["inondation", "eau", "crue", "rivière", "ouragan", "tempête", "inondasyon", "dlo desann", "dlo", "rivyè", "lavalas", "siklon", "tanpèt"],
+        "other": ["suspect", "rôde", "inconnu", "disparu", "sispèk", "moun pèdi", "vòlò"],
+      };
 
-
-      {reportOpen && (
-        <div className="report-modal-backdrop" role="presentation" onClick={closeReportForm}>
-          <section
-            className="report-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="report-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="report-modal-title">Submit incident report</h2>
-            <p>Reports are linked to your account and analyzed for urgency.</p>
-
-            <label>
-              Description (optionnel)
-              <textarea
-                value={reportDescription}
-                onChange={(event) => setReportDescription(event.target.value)}
-                placeholder="Décrivez ce qu'il se passe..."
-              />
-            </label>
-
-            <label>
-              Category
-              <select
-                value={reportCategory}
-                onChange={(event) => {
+      let matched = "other";
+      for (const [cat, words] of Object.entries(keywordMap)) {
+        if (words.some((w) => lowerDesc.includes(w))) {
+          matched = cat;
+          break;
+        }
+      }
+      setReportCategory(matched);
                   setReportCategory(event.target.value);
                   setUserModifiedCategory(true);
                 }}

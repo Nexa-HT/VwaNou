@@ -10,13 +10,11 @@ import "./App.css";
 const AUTH_STORAGE_KEY = "vwanou.authSession";
 
 function App() {
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-
-  useEffect(() => {
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
 
     if (!stored) {
-      return;
+      return null;
     }
 
     try {
@@ -24,11 +22,12 @@ function App() {
       if (!parsed.token || !parsed.user?.id) {
         throw new Error("Invalid session payload");
       }
-      setAuthSession(parsed);
+      return parsed;
     } catch {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
     }
-  }, []);
+  });
 
   const handleAuthenticated = (session: AuthSession) => {
     setAuthSession(session);
