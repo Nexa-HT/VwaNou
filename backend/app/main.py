@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,19 +18,25 @@ from app.routers.trusted import router as trusted_router
 from app.routers.users import router as users_router
 from app.routers.zones import router as zones_router
 
-app = FastAPI(title=settings.app_name)
+app = FastAPI(
+    title=settings.app_name,
+    docs_url="/docs" if settings.enable_docs else None,
+    redoc_url="/redoc" if settings.enable_docs else None,
+    openapi_url="/openapi.json" if settings.enable_docs else None,
+)
 logger = logging.getLogger(__name__)
 
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 
-# Always include common local frontend origins for development.
-local_dev_origins = [
-    "http://127.0.0.1:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:3000",
-    "http://localhost:3000",
-]
-origins = list(dict.fromkeys([*origins, *local_dev_origins]))
+if settings.app_env.lower() != "production":
+    # Local origins are convenient in development, but should not be auto-allowed in production.
+    local_dev_origins = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ]
+    origins = list(dict.fromkeys([*origins, *local_dev_origins]))
 
 allow_credentials = "*" not in origins
 app.add_middleware(
@@ -43,6 +49,19 @@ app.add_middleware(
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    if settings.app_env.lower() == "production":
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
+    return response
 
 @app.on_event("startup")
 def on_startup() -> None:
