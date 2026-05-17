@@ -638,31 +638,31 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
           </button>
         </div>
       )}
-        return;
-      }
+      {reportOpen && (
+        <div className="report-modal-backdrop" role="presentation" onClick={closeReportForm}>
+          <section
+            className="report-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="report-modal-title">Submit incident report</h2>
 
-      const lowerDesc = reportDescription.toLowerCase();
-      const keywordMap: Record<string, string[]> = {
-        "gunshot": ["tirs", "tir", "arme", "fusillade", "gang", "balle", "agression", "braquage", "vol", "zam", "tire", "bal", "kout zam", "vòlè", "asasen", "brakaj"],
-        "fire": ["feu", "incendie", "brûle", "fumée", "dife", "boule", "lafimen"],
-        "accident": ["accident", "circulation", "voiture", "moto", "aksidan", "machin", "kamyon"],
-        "civil unrest": ["bloqué", "blocus", "barricade", "manifestation", "pneu", "grève", "bloke", "barikad", "manifestasyon", "kawotchou", "grev", "fè nwa"],
-        "medical emergency": ["blessé", "sang", "hopital", "malaise", "mort", "urgence", "frappe", "violences", "blese", "san", "lopital", "mouri", "malad"],
-        "kidnapping": ["kidnapping", "enlèvement", "otage", "kidnape", "kidnapin"],
-        "earthquake": ["séisme", "tremblement", "secousse", "tranbleman", "tè tranble"],
-        "landslide": ["glissement", "éboulement", "eboulman", "tè glise", "te glise"],
-        "flood": ["inondation", "eau", "crue", "rivière", "ouragan", "tempête", "inondasyon", "dlo desann", "dlo", "rivyè", "lavalas", "siklon", "tanpèt"],
-        "other": ["suspect", "rôde", "inconnu", "disparu", "sispèk", "moun pèdi", "vòlò"],
-      };
+            <label>
+              Description
+              <textarea
+                value={reportDescription}
+                onChange={(event) => setReportDescription(event.target.value)}
+                placeholder="Describe what you observed"
+              />
+            </label>
 
-      let matched = "other";
-      for (const [cat, words] of Object.entries(keywordMap)) {
-        if (words.some((w) => lowerDesc.includes(w))) {
-          matched = cat;
-          break;
-        }
-      }
-      setReportCategory(matched);
+            <label>
+              Category
+              <select
+                value={reportCategory}
+                onChange={(event) => {
                   setReportCategory(event.target.value);
                   setUserModifiedCategory(true);
                 }}
@@ -675,14 +675,24 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
               </select>
             </label>
 
+            <label>
+              Latitude
+              <input type="number" value={reportLat} onChange={(event) => setReportLat(event.target.value)} />
+            </label>
+
+            <label>
+              Longitude
+              <input type="number" value={reportLng} onChange={(event) => setReportLng(event.target.value)} />
+            </label>
+
             {showRecorder ? (
-              <LiveMediaRecorder 
+              <LiveMediaRecorder
                 onCapture={async (file, transcript) => {
                   try {
                     setIsAnalyzing(true);
                     setReportError(null);
                     setShowRecorder(false);
-                    
+
                     if (file.type.startsWith("image/")) {
                       setReportMediaPreview(URL.createObjectURL(file));
                     } else {
@@ -701,57 +711,89 @@ function MapView({ currentUser, authToken, onSignOut }: MapViewProps) {
                     }
 
                     const analyzeResult = await api.analyzeMedia(authToken, {
-                       description: desc,
-                       media_url: uploadResult.url,
-                       transcript: transcript
+                      description: desc,
+                      media_url: uploadResult.url,
+                      transcript,
                     });
-                    
+
                     if (analyzeResult.category && analyzeResult.category !== "unknown") {
-                       setReportCategory(analyzeResult.category);
+                      setReportCategory(analyzeResult.category);
                     }
-                  } catch (e) {
-                     console.error("Erreur d'analyse IA:", e);
+                  } catch (error) {
+                    console.error("Erreur d'analyse IA:", error);
                   } finally {
                     setIsAnalyzing(false);
                   }
-                }} 
-                onCancel={() => setShowRecorder(false)} 
+                }}
+                onCancel={() => setShowRecorder(false)}
               />
             ) : (
-              <div className="report-media-upload" style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", marginBottom: "16px" }}>
+              <div
+                className="report-media-upload"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  marginTop: "12px",
+                  marginBottom: "16px",
+                }}
+              >
                 <label style={{ fontSize: "14px", fontWeight: "600", color: "white" }}>
-                  Preuve Vérifiée On-site (Live) - Optionnel
+                  Preuve Verifiee On-site (Live) - Optionnel
                 </label>
                 {!reportMedia && !isAnalyzing && (
-                  <button 
-                    type="button" 
-                    className="report-secondary" 
-                    onClick={() => setShowRecorder(true)} 
-                    style={{ marginTop: "4px", padding: "10px", display: "flex", justifyContent: "center", gap: "8px", alignItems: "center" }}
+                  <button
+                    type="button"
+                    className="report-secondary"
+                    onClick={() => setShowRecorder(true)}
+                    style={{
+                      marginTop: "4px",
+                      padding: "10px",
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
                   >
-                    <span>🔴 Capturer (Caméra / Micro)</span>
+                    <span>Capturer (Camera / Micro)</span>
                   </button>
                 )}
                 {isAnalyzing && (
                   <p style={{ fontSize: "12px", color: "var(--accent-teal)", margin: "0" }}>
-                    🤖 Analyse IA de la preuve en cours...
+                    Analyse IA de la preuve en cours...
                   </p>
                 )}
                 {reportMediaPreview && !isAnalyzing && (
-                  <img 
-                    src={reportMediaPreview} 
-                    alt="Aperçu" 
-                    style={{ width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "6px" }} 
+                  <img
+                    src={reportMediaPreview}
+                    alt="Apercu"
+                    style={{ width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "6px" }}
                   />
                 )}
                 {reportMedia && !reportMediaPreview && !isAnalyzing && (
                   <p style={{ fontSize: "12px", color: "var(--accent-teal)", margin: "0" }}>
-                    Fichier capturé : {reportMedia.name}
+                    Fichier capture : {reportMedia.name}
                   </p>
                 )}
                 {reportMedia && !isAnalyzing && (
-                  <button type="button" onClick={() => { setReportMedia(null); setReportMediaPreview(null); setReportMediaUrl(null); }} style={{ background: "transparent", color: "#ef4444", border: "none", alignSelf: "flex-start", fontSize: "12px", cursor: "pointer", padding: "0" }}>
-                    ✕ Supprimer la preuve
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportMedia(null);
+                      setReportMediaPreview(null);
+                      setReportMediaUrl(null);
+                    }}
+                    style={{
+                      background: "transparent",
+                      color: "#ef4444",
+                      border: "none",
+                      alignSelf: "flex-start",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      padding: "0",
+                    }}
+                  >
+                    Supprimer la preuve
                   </button>
                 )}
               </div>
