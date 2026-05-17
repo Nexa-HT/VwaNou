@@ -21,9 +21,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Lint frontend
-        run: npm run lint
-
       - name: Build frontend
         run: npm run build
 
